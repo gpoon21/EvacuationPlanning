@@ -11,7 +11,6 @@ namespace EvacuationPlanning;
 /// Manages evacuation data in memory and syncs evacuation status.
 /// </summary>
 public class Planner {
-    
     private class Zone {
         public required EvacuationZone Info { get; init; }
 
@@ -52,10 +51,10 @@ public class Planner {
     public event Action<EvacuationStatus, UpdateType>? ZoneUpdated;
     private readonly ConcurrentDictionary<string, Zone> _zones = new();
     private readonly ConcurrentDictionary<string, Vehicle> _vehicles = new();
-    private readonly IVehicleSelector _vehicleSelector;
+    private readonly IStrategy _vehicleSelector;
 
 
-    public Planner(IVehicleSelector vehicleSelector) {
+    public Planner(IStrategy vehicleSelector) {
         _vehicleSelector = vehicleSelector;
     }
 
@@ -93,40 +92,32 @@ public class Planner {
 
 
     public EvacuationPlanItem[] Plan() {
-        List<Vehicle> availableVehicles = _vehicles.Values
-            .Where(v => v.Capacity > 0)
-            .ToList();
-
         List<EvacuationPlanItem> plan = [];
 
-        foreach (Zone zone in _zones.Values
-                     .OrderByDescending(z => z.Info.UrgencyLevel)
-                     .ToArray()) {
-            int remaining = zone.Remaining;
-            if (remaining <= 0) {
-                continue;
-            }
+        Dictionary<EvacuationZone, Vehicle[]> result =
+            _vehicleSelector.GetPlan(_vehicles.Values, _zones.Values.Select(zone => zone.Info));
 
+        foreach ((EvacuationZone zone, Vehicle[] vehicles) in result) {
             static TimeSpan GetETA(LocationCoordinates a, LocationCoordinates b, double speedKmH) {
                 double distanceKm = GeoHelper.CalculateDistance(a, b);
                 double travelTimeHours = distanceKm / speedKmH;
                 return TimeSpan.FromHours(travelTimeHours);
             }
 
-            while (remaining > 0 && availableVehicles.Count > 0) {
-                Vehicle selectedVehicle = _vehicleSelector.Select(availableVehicles, zone.Info);
-                TimeSpan eta = GetETA(selectedVehicle.LocationCoordinates, zone.Info.LocationCoordinates,
-                    selectedVehicle.Speed);
-                int peopleToEvacuate = Math.Min(selectedVehicle.Capacity, remaining);
-                Debug.Assert(peopleToEvacuate > 0);
+            int remaining = zone.NumberOfPeople;
+            foreach (Vehicle vehicle in vehicles.OrderBy(v => v.Capacity)) {
+                if (remaining <= 0) break;
+                TimeSpan eta = GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates,
+                    vehicle.Speed);
+                int peopleInVehicle = Math.Min(vehicle.Capacity, remaining);
+                Debug.Assert(peopleInVehicle > 0);
                 plan.Add(new EvacuationPlanItem {
-                    ZoneID = zone.Info.ZoneID,
-                    VehicleID = selectedVehicle.VehicleID,
+                    ZoneID = zone.ZoneID,
+                    VehicleID = vehicle.VehicleID,
                     ETA = eta.Humanize(),
-                    NumberOfPeople = peopleToEvacuate
+                    NumberOfPeople = peopleInVehicle
                 });
-                availableVehicles.Remove(selectedVehicle);
-                remaining -= peopleToEvacuate;
+                remaining -= peopleInVehicle;
             }
         }
 
@@ -147,6 +138,4 @@ public class Planner {
         zone.Evacuate(numberOfPeopleEvacuated, vehicle);
         ZoneUpdated?.Invoke(zone.GetStatus(), UpdateType.Updated);
     }
-
-
 }
