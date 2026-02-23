@@ -54,7 +54,6 @@ public class Planner {
     private readonly ConcurrentDictionary<string, Vehicle> _vehicles = new();
     private readonly IVehicleSelector _vehicleSelector;
 
-    private const double _earthRadiusKm = 6371.0;
 
     public Planner(IVehicleSelector vehicleSelector) {
         _vehicleSelector = vehicleSelector;
@@ -109,7 +108,7 @@ public class Planner {
             }
 
             static TimeSpan GetETA(LocationCoordinates a, LocationCoordinates b, double speedKmH) {
-                double distanceKm = CalculateDistance(a, b);
+                double distanceKm = GeoHelper.CalculateDistance(a, b);
                 double travelTimeHours = distanceKm / speedKmH;
                 return TimeSpan.FromHours(travelTimeHours);
             }
@@ -150,25 +149,4 @@ public class Planner {
     }
 
 
-    /// <returns>
-    /// Distance in KM
-    /// </returns>
-    private static double CalculateDistance(LocationCoordinates from, LocationCoordinates to) {
-        double lat1 = DegreesToRadians(from.Latitude);
-        double lat2 = DegreesToRadians(to.Latitude);
-        double deltaLat = DegreesToRadians(to.Latitude - from.Latitude);
-        double deltaLon = DegreesToRadians(to.Longitude - from.Longitude);
-
-        double a = Math.Sin(deltaLat / 2) * Math.Sin(deltaLat / 2) +
-                   Math.Cos(lat1) * Math.Cos(lat2) *
-                   Math.Sin(deltaLon / 2) * Math.Sin(deltaLon / 2);
-
-        double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-
-        return _earthRadiusKm * c;
-    }
-
-    private static double DegreesToRadians(double degrees) {
-        return degrees * (Math.PI / 180.0);
-    }
 }
