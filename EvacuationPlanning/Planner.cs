@@ -95,7 +95,7 @@ public class Planner {
         List<EvacuationPlanItem> plan = [];
 
         Dictionary<EvacuationZone, Vehicle[]> result =
-            _vehicleSelector.GetPlan(_vehicles.Values, _zones.Values.Select(zone => zone.Info));
+            _vehicleSelector.Assign(_vehicles.Values, _zones.Values.Select(zone => zone.Info));
 
         foreach ((EvacuationZone zone, Vehicle[] vehicles) in result) {
             static TimeSpan GetETA(LocationCoordinates a, LocationCoordinates b, double speedKmH) {
