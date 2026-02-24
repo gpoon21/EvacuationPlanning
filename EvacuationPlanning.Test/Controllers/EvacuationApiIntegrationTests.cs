@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using EvacuationPlanning.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Caching.Distributed;
@@ -164,6 +165,64 @@ public class EvacuationApiIntegrationTests {
         EvacuationStatus[]? statuses = await statusResponse.Content.ReadFromJsonAsync<EvacuationStatus[]>();
         Assert.NotNull(statuses);
         Assert.Empty(statuses);
+    }
+
+    [Fact]
+    public async Task AddZone_SyncsStatusToCache() {
+        await using WebApplicationFactory<Program> factory = CreateFactory();
+        using HttpClient client = factory.CreateClient();
+
+        await client.PostAsJsonAsync("/api/evacuation-zones", MakeZone("Z1", 100, 4));
+
+        IDistributedCache cache = factory.Services.GetRequiredService<IDistributedCache>();
+        string? cached = await cache.GetStringAsync("evacuation:zone:Z1");
+        Assert.NotNull(cached);
+        EvacuationStatus? status = JsonSerializer.Deserialize<EvacuationStatus>(cached);
+        Assert.NotNull(status);
+        Assert.Equal("Z1", status.ZoneID);
+        Assert.Equal(0, status.TotalEvacuated);
+        Assert.Equal(100, status.RemainingPeople);
+    }
+
+    [Fact]
+    public async Task UpdateStatus_SyncsUpdatedStatusToCache() {
+        await using WebApplicationFactory<Program> factory = CreateFactory();
+        using HttpClient client = factory.CreateClient();
+
+        await client.PostAsJsonAsync("/api/evacuation-zones", MakeZone("Z1", 100, 4));
+        await client.PostAsJsonAsync("/api/vehicles", MakeVehicle("V1", 40));
+
+        UpdateStatusRequest request = new() {
+            ZoneID = "Z1",
+            VehicleID = "V1",
+            NumberOfPeopleEvacuated = 25,
+        };
+        await client.PutAsJsonAsync("/api/evacuations/update", request);
+
+        IDistributedCache cache = factory.Services.GetRequiredService<IDistributedCache>();
+        string? cached = await cache.GetStringAsync("evacuation:zone:Z1");
+        Assert.NotNull(cached);
+        EvacuationStatus? status = JsonSerializer.Deserialize<EvacuationStatus>(cached);
+        Assert.NotNull(status);
+        Assert.Equal(25, status.TotalEvacuated);
+        Assert.Equal(75, status.RemainingPeople);
+    }
+
+    [Fact]
+    public async Task Clear_RemovesStatusFromCache() {
+        await using WebApplicationFactory<Program> factory = CreateFactory();
+        using HttpClient client = factory.CreateClient();
+
+        await client.PostAsJsonAsync("/api/evacuation-zones", MakeZone("Z1", 100, 4));
+
+        IDistributedCache cache = factory.Services.GetRequiredService<IDistributedCache>();
+        string? cachedBefore = await cache.GetStringAsync("evacuation:zone:Z1");
+        Assert.NotNull(cachedBefore);
+
+        await client.DeleteAsync("/api/evacuations/clear");
+
+        string? cachedAfter = await cache.GetStringAsync("evacuation:zone:Z1");
+        Assert.Null(cachedAfter);
     }
 
     [Fact]
