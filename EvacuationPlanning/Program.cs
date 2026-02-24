@@ -32,3 +32,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Required for WebApplicationFactory to access the entry point in integration tests
+public partial class Program;
