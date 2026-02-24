@@ -8,6 +8,7 @@ namespace EvacuationPlanning.Strategies;
 /// Fitness measures evacuation throughput: people moved per unit time, weighted by zone urgency.
 /// </summary>
 public class GeneticStrategy : IStrategy {
+    private readonly int _populationFactor;
     private readonly int _minPopulation;
     private readonly int _maxPopulation;
     private readonly int _stagnationGenerations;
@@ -16,12 +17,14 @@ public class GeneticStrategy : IStrategy {
     private readonly double _vehicleSwitchSeconds;
 
     public GeneticStrategy(
+        int populationFactor = 10,
         int minPopulation = 50,
-        int maxPopulation = 70,
+        int maxPopulation = 500,
         int stagnationGenerations = 50,
         float crossoverProbability = 0.75f,
         float mutationProbability = 0.1f,
         double vehicleSwitchSeconds = 30.0) {
+        _populationFactor = populationFactor;
         _minPopulation = minPopulation;
         _maxPopulation = maxPopulation;
         _stagnationGenerations = stagnationGenerations;
@@ -43,8 +46,11 @@ public class GeneticStrategy : IStrategy {
             return AssignSingleVehicle(vehicleArray[0], zoneArray);
         }
 
+        int scaledPopulation = _populationFactor * vehicleArray.Length * zoneArray.Length;
+        int populationSize = Math.Clamp(scaledPopulation, _minPopulation, _maxPopulation);
+
         AssignmentChromosome adamChromosome = new(vehicleArray.Length, zoneArray.Length);
-        Population population = new(_minPopulation, _maxPopulation, adamChromosome);
+        Population population = new(populationSize, populationSize, adamChromosome);
 
         EvacuationFitness fitness = new(vehicleArray, zoneArray, _vehicleSwitchSeconds);
         EliteSelection selection = new();
@@ -173,23 +179,35 @@ internal class EvacuationFitness : IFitness {
             }
 
             EvacuationZone zone = _zones[z];
+
+            // Sort vehicles by ETA so the fastest-arriving vehicles load first
+            vehicleIndices.Sort((a, b) => {
+                double etaA = GeoHelper.GetETA(_vehicles[a].LocationCoordinates, zone.LocationCoordinates, _vehicles[a].Speed).TotalSeconds;
+                double etaB = GeoHelper.GetETA(_vehicles[b].LocationCoordinates, zone.LocationCoordinates, _vehicles[b].Speed).TotalSeconds;
+                return etaA.CompareTo(etaB);
+            });
+
             int remaining = zone.NumberOfPeople;
             bool isFirstVehicle = true;
 
             foreach (int vi in vehicleIndices) {
-                if (remaining <= 0) {
-                    break;
-                }
-
                 Vehicle vehicle = _vehicles[vi];
-                int peopleLoaded = Math.Min(vehicle.Capacity, remaining);
-
                 double travelTimeSeconds = GeoHelper
                     .GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates, vehicle.Speed).TotalSeconds;
+
+                // Vehicle arrived but no one left to pick up — penalize the wasted travel time
+                if (remaining <= 0) {
+                    totalFitness -= travelTimeSeconds;
+                    continue;
+                }
+
+                int peopleLoaded = Math.Min(vehicle.Capacity, remaining);
+
                 double loadingTimeSeconds = peopleLoaded;
                 double switchTimeSeconds = isFirstVehicle ? 0.0 : _vehicleSwitchSeconds;
+                double totalTimeSeconds = travelTimeSeconds + loadingTimeSeconds + switchTimeSeconds;
 
-                double throughput = peopleLoaded / (travelTimeSeconds + loadingTimeSeconds + switchTimeSeconds);
+                double throughput = peopleLoaded / totalTimeSeconds;
                 totalFitness += throughput * zone.UrgencyLevel;
 
                 remaining -= peopleLoaded;
