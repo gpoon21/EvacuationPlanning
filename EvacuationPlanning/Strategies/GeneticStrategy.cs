@@ -30,12 +30,17 @@ public class GeneticStrategy : IStrategy {
         _vehicleSwitchSeconds = vehicleSwitchSeconds;
     }
 
-    public Dictionary<EvacuationZone, Vehicle[]> Assign(IEnumerable<Vehicle> vehicles, IEnumerable<EvacuationZone> zones) {
+    public Dictionary<EvacuationZone, Vehicle[]> Assign(IEnumerable<Vehicle> vehicles,
+        IEnumerable<EvacuationZone> zones) {
         Vehicle[] vehicleArray = vehicles.ToArray();
         EvacuationZone[] zoneArray = zones.ToArray();
 
         if (vehicleArray.Length == 0 || zoneArray.Length == 0) {
             return new Dictionary<EvacuationZone, Vehicle[]>();
+        }
+
+        if (vehicleArray.Length == 1) {
+            return AssignSingleVehicle(vehicleArray[0], zoneArray);
         }
 
         AssignmentChromosome adamChromosome = new(vehicleArray.Length, zoneArray.Length);
@@ -57,7 +62,31 @@ public class GeneticStrategy : IStrategy {
         return DecodeChromosome(ga.BestChromosome, vehicleArray, zoneArray);
     }
 
-    internal static Dictionary<EvacuationZone, Vehicle[]> DecodeChromosome(
+    private static Dictionary<EvacuationZone, Vehicle[]> AssignSingleVehicle(Vehicle vehicle, EvacuationZone[] zones) {
+        EvacuationZone? bestZone = null;
+        double bestScore = -1.0;
+
+        foreach (EvacuationZone zone in zones) {
+            int peopleLoaded = Math.Min(vehicle.Capacity, zone.NumberOfPeople);
+            double travelTimeSeconds = GeoHelper
+                .GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates, vehicle.Speed).TotalSeconds;
+            double loadingTimeSeconds = peopleLoaded;
+            double score = peopleLoaded / (travelTimeSeconds + loadingTimeSeconds) * zone.UrgencyLevel;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestZone = zone;
+            }
+        }
+
+        if (bestZone == null) {
+            return new Dictionary<EvacuationZone, Vehicle[]>();
+        }
+
+        return new Dictionary<EvacuationZone, Vehicle[]> { [bestZone] = [vehicle] };
+    }
+
+    private static Dictionary<EvacuationZone, Vehicle[]> DecodeChromosome(
         IChromosome chromosome, Vehicle[] vehicleArray, EvacuationZone[] zoneArray) {
         Dictionary<EvacuationZone, List<Vehicle>> assignment = [];
 
@@ -155,7 +184,8 @@ internal class EvacuationFitness : IFitness {
                 Vehicle vehicle = _vehicles[vi];
                 int peopleLoaded = Math.Min(vehicle.Capacity, remaining);
 
-                double travelTimeSeconds = GeoHelper.GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates, vehicle.Speed).TotalSeconds;
+                double travelTimeSeconds = GeoHelper
+                    .GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates, vehicle.Speed).TotalSeconds;
                 double loadingTimeSeconds = peopleLoaded;
                 double switchTimeSeconds = isFirstVehicle ? 0.0 : _vehicleSwitchSeconds;
 
