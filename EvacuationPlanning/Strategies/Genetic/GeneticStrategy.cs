@@ -1,7 +1,7 @@
 using EvacuationPlanning.Models;
 using GeneticSharp;
 
-namespace EvacuationPlanning.Strategies;
+namespace EvacuationPlanning.Strategies.Genetic;
 
 /// <summary>
 /// Uses a genetic algorithm to find optimal vehicle-to-zone assignments.
@@ -14,23 +14,23 @@ public class GeneticStrategy : IStrategy {
     private readonly int _stagnationGenerations;
     private readonly float _crossoverProbability;
     private readonly float _mutationProbability;
-    private readonly double _vehicleSwitchSeconds;
+    private readonly IFitnessProvider _fitnessProvider;
 
     public GeneticStrategy(
+        IFitnessProvider fitnessProvider,
         int populationFactor = 10,
         int minPopulation = 50,
         int maxPopulation = 500,
         int stagnationGenerations = 50,
         float crossoverProbability = 0.75f,
-        float mutationProbability = 0.1f,
-        double vehicleSwitchSeconds = 30.0) {
+        float mutationProbability = 0.1f) {
         _populationFactor = populationFactor;
         _minPopulation = minPopulation;
         _maxPopulation = maxPopulation;
         _stagnationGenerations = stagnationGenerations;
         _crossoverProbability = crossoverProbability;
         _mutationProbability = mutationProbability;
-        _vehicleSwitchSeconds = vehicleSwitchSeconds;
+        _fitnessProvider = fitnessProvider;
     }
 
     public Dictionary<EvacuationZone, Vehicle[]> Assign(IEnumerable<Vehicle> vehicles,
@@ -52,7 +52,7 @@ public class GeneticStrategy : IStrategy {
         AssignmentChromosome adamChromosome = new(vehicleArray.Length, zoneArray.Length);
         Population population = new(populationSize, populationSize, adamChromosome);
 
-        EvacuationFitness fitness = new(vehicleArray, zoneArray, _vehicleSwitchSeconds);
+        EvacuationFitness fitness = new(vehicleArray, zoneArray, _fitnessProvider);
         EliteSelection selection = new();
         UniformCrossover crossover = new();
         UniformMutation mutation = new(true);
@@ -68,16 +68,13 @@ public class GeneticStrategy : IStrategy {
         return DecodeChromosome(ga.BestChromosome, vehicleArray, zoneArray);
     }
 
-    private static Dictionary<EvacuationZone, Vehicle[]> AssignSingleVehicle(Vehicle vehicle, EvacuationZone[] zones) {
+    private Dictionary<EvacuationZone, Vehicle[]> AssignSingleVehicle(Vehicle vehicle, EvacuationZone[] zones) {
         EvacuationZone? bestZone = null;
-        double bestScore = -1.0;
+        double bestScore = double.MinValue;
 
         foreach (EvacuationZone zone in zones) {
-            int peopleLoaded = Math.Min(vehicle.Capacity, zone.NumberOfPeople);
-            double travelTimeSeconds = GeoHelper
-                .GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates, vehicle.Speed).TotalSeconds;
-            double loadingTimeSeconds = peopleLoaded;
-            double score = peopleLoaded / (travelTimeSeconds + loadingTimeSeconds) * zone.UrgencyLevel;
+            Dictionary<EvacuationZone, Vehicle[]> candidate = new() { [zone] = [vehicle] };
+            double score = _fitnessProvider.GetFitness(candidate);
 
             if (score > bestScore) {
                 bestScore = score;
@@ -92,7 +89,7 @@ public class GeneticStrategy : IStrategy {
         return new Dictionary<EvacuationZone, Vehicle[]> { [bestZone] = [vehicle] };
     }
 
-    private static Dictionary<EvacuationZone, Vehicle[]> DecodeChromosome(
+    internal static Dictionary<EvacuationZone, Vehicle[]> DecodeChromosome(
         IChromosome chromosome, Vehicle[] vehicleArray, EvacuationZone[] zoneArray) {
         Dictionary<EvacuationZone, List<Vehicle>> assignment = [];
 
@@ -138,87 +135,23 @@ internal sealed class AssignmentChromosome : ChromosomeBase {
 }
 
 /// <summary>
-/// Evaluates a complete vehicle-to-zone assignment.
-/// Score = sum over all zones of (per-vehicle throughput) × urgency.
-/// Per-vehicle throughput = people_loaded / (travel_time + loading_time + switch_time).
-/// Loading time assumes 1 person/sec per vehicle. A switch penalty is applied for each
-/// vehicle after the first, making fewer larger vehicles preferable to many smaller ones.
+/// Bridges IFitnessProvider with GeneticSharp's IFitness interface.
+/// Decodes a chromosome into a zone-to-vehicles mapping and delegates scoring.
 /// </summary>
 internal class EvacuationFitness : IFitness {
     private readonly Vehicle[] _vehicles;
     private readonly EvacuationZone[] _zones;
-    private readonly double _vehicleSwitchSeconds;
+    private readonly IFitnessProvider _fitnessProvider;
 
-    public EvacuationFitness(Vehicle[] vehicles, EvacuationZone[] zones, double vehicleSwitchSeconds) {
+    public EvacuationFitness(Vehicle[] vehicles, EvacuationZone[] zones, IFitnessProvider fitnessProvider) {
         _vehicles = vehicles;
         _zones = zones;
-        _vehicleSwitchSeconds = vehicleSwitchSeconds;
+        _fitnessProvider = fitnessProvider;
     }
 
     public double Evaluate(IChromosome chromosome) {
-        // Group vehicles by zone index
-        Dictionary<int, List<int>> zoneToVehicleIndices = [];
-        for (int i = 0; i < chromosome.Length; i++) {
-            int zoneIndex = (int)chromosome.GetGene(i).Value;
-            if (zoneIndex < 0) {
-                continue;
-            }
-
-            if (!zoneToVehicleIndices.TryGetValue(zoneIndex, out List<int>? list)) {
-                list = [];
-                zoneToVehicleIndices[zoneIndex] = list;
-            }
-            list.Add(i);
-        }
-
-        double totalFitness = 0.0;
-
-        for (int z = 0; z < _zones.Length; z++) {
-            if (!zoneToVehicleIndices.TryGetValue(z, out List<int>? vehicleIndices)) {
-                continue;
-            }
-
-            EvacuationZone zone = _zones[z];
-
-            // Sort vehicles by ETA so the fastest-arriving vehicles load first
-            vehicleIndices.Sort((a, b) => {
-                double etaA = GeoHelper.GetETA(_vehicles[a].LocationCoordinates, zone.LocationCoordinates, _vehicles[a].Speed).TotalSeconds;
-                double etaB = GeoHelper.GetETA(_vehicles[b].LocationCoordinates, zone.LocationCoordinates, _vehicles[b].Speed).TotalSeconds;
-                return etaA.CompareTo(etaB);
-            });
-
-            int remaining = zone.NumberOfPeople;
-            // Tracks when the zone is ready for the next vehicle (after loading + switch)
-            double zoneAvailableAt = 0.0;
-
-            foreach (int vi in vehicleIndices) {
-                Vehicle vehicle = _vehicles[vi];
-                double arrivalTime = GeoHelper
-                    .GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates, vehicle.Speed).TotalSeconds;
-
-                // Vehicle arrived but no one left to pick up — penalize the wasted travel time
-                if (remaining <= 0) {
-                    totalFitness -= arrivalTime;
-                    continue;
-                }
-
-                int peopleLoaded = Math.Min(vehicle.Capacity, remaining);
-                double loadingTimeSeconds = peopleLoaded;
-
-                // Vehicle must wait if it arrives before the zone is available
-                double effectiveStart = Math.Max(arrivalTime, zoneAvailableAt);
-                double waitTime = effectiveStart - arrivalTime;
-                double totalTimeSeconds = arrivalTime + waitTime + loadingTimeSeconds;
-
-                zoneAvailableAt = effectiveStart + loadingTimeSeconds + _vehicleSwitchSeconds;
-
-                double throughput = peopleLoaded / totalTimeSeconds;
-                totalFitness += throughput * zone.UrgencyLevel;
-
-                remaining -= peopleLoaded;
-            }
-        }
-
-        return totalFitness;
+        Dictionary<EvacuationZone, Vehicle[]> plan =
+            GeneticStrategy.DecodeChromosome(chromosome, _vehicles, _zones);
+        return _fitnessProvider.GetFitness(plan);
     }
 }

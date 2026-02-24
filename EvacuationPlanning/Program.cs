@@ -1,9 +1,11 @@
 using EvacuationPlanning;
 using EvacuationPlanning.Strategies;
+using EvacuationPlanning.Strategies.Genetic;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddSingleton<IFitnessProvider, ThroughputFitnessProvider>();
 builder.Services.AddSingleton<IStrategy, GeneticStrategy>();
 builder.Services.AddSingleton<Planner>();
 builder.Services.AddHostedService<RedisStatusSync>();

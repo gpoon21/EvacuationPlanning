@@ -1,5 +1,6 @@
 using EvacuationPlanning.Models;
 using EvacuationPlanning.Strategies;
+using EvacuationPlanning.Strategies.Genetic;
 using Xunit.Abstractions;
 
 namespace EvacuationPlanning.Test.Strategies;
@@ -11,14 +12,19 @@ public class GeneticStrategyManualReviewTest {
         _output = output;
     }
 
+    public static TheoryData<string, IFitnessProvider> FitnessProviders => new() {
+        { "Throughput", new ThroughputFitnessProvider() },
+        { "CoverageTime", new CoverageTimeFitnessProvider() },
+    };
+
     private static LocationCoordinates Loc(double lat, double lon) => new() {
         Latitude = lat,
         Longitude = lon
     };
 
-    private void PrintResult(string title, EvacuationZone[] zones, Vehicle[] vehicles,
+    private void PrintResult(string title, string providerName, EvacuationZone[] zones, Vehicle[] vehicles,
         Dictionary<EvacuationZone, Vehicle[]> result) {
-        _output.WriteLine($"=== {title} ===");
+        _output.WriteLine($"=== {title} [{providerName}] ===");
         _output.WriteLine("");
 
         foreach (EvacuationZone zone in zones) {
@@ -60,9 +66,10 @@ public class GeneticStrategyManualReviewTest {
     /// <summary>
     /// Bangkok flood: 3 zones with varying urgency and population, 5 mixed vehicles.
     /// </summary>
-    [Fact]
-    public void BangkokFloodScenario() {
-        GeneticStrategy strategy = new();
+    [Theory]
+    [MemberData(nameof(FitnessProviders))]
+    public void BangkokFloodScenario(string name, IFitnessProvider provider) {
+        GeneticStrategy strategy = new(provider);
 
         EvacuationZone[] zones = [
             new() { ZoneID = "Hospital", NumberOfPeople = 200, UrgencyLevel = 5, LocationCoordinates = Loc(13.7563, 100.5018) },
@@ -79,16 +86,17 @@ public class GeneticStrategyManualReviewTest {
         ];
 
         Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
-        PrintResult("Bangkok Flood Evacuation", zones, vehicles, result);
+        PrintResult("Bangkok Flood Evacuation", name, zones, vehicles, result);
     }
 
     /// <summary>
     /// Aircraft carrier vs van: one massive vehicle, one small zone and one large zone.
     /// The carrier should go to the large zone, the van to the small one.
     /// </summary>
-    [Fact]
-    public void AircraftCarrierVsVanScenario() {
-        GeneticStrategy strategy = new();
+    [Theory]
+    [MemberData(nameof(FitnessProviders))]
+    public void AircraftCarrierVsVanScenario(string name, IFitnessProvider provider) {
+        GeneticStrategy strategy = new(provider);
 
         EvacuationZone[] zones = [
             new() { ZoneID = "Island-Village", NumberOfPeople = 10, UrgencyLevel = 5, LocationCoordinates = Loc(12.9236, 100.8825) },
@@ -101,16 +109,17 @@ public class GeneticStrategyManualReviewTest {
         ];
 
         Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
-        PrintResult("Aircraft Carrier vs Van", zones, vehicles, result);
+        PrintResult("Aircraft Carrier vs Van", name, zones, vehicles, result);
     }
 
     /// <summary>
     /// Single bottleneck: many vehicles but only one tiny zone with 3 people.
     /// Should assign only 1 vehicle, not waste the rest.
     /// </summary>
-    [Fact]
-    public void ManyVehiclesOneTinyZone() {
-        GeneticStrategy strategy = new();
+    [Theory]
+    [MemberData(nameof(FitnessProviders))]
+    public void ManyVehiclesOneTinyZone(string name, IFitnessProvider provider) {
+        GeneticStrategy strategy = new(provider);
 
         EvacuationZone[] zones = [
             new() { ZoneID = "Rooftop", NumberOfPeople = 3, UrgencyLevel = 5, LocationCoordinates = Loc(13.7500, 100.5000) },
@@ -127,16 +136,17 @@ public class GeneticStrategyManualReviewTest {
             .ToArray();
 
         Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
-        PrintResult("10 Buses for 3 People on a Rooftop", zones, vehicles, result);
+        PrintResult("10 Buses for 3 People on a Rooftop", name, zones, vehicles, result);
     }
 
     /// <summary>
     /// Large-scale: 5 zones across a region, 15 vehicles of mixed types.
     /// Tests whether the GA scales and produces reasonable assignments.
     /// </summary>
-    [Fact]
-    public void LargeScaleRegionalEvacuation() {
-        GeneticStrategy strategy = new();
+    [Theory]
+    [MemberData(nameof(FitnessProviders))]
+    public void LargeScaleRegionalEvacuation(string name, IFitnessProvider provider) {
+        GeneticStrategy strategy = new(provider);
 
         EvacuationZone[] zones = [
             new() { ZoneID = "Downtown", NumberOfPeople = 500, UrgencyLevel = 5, LocationCoordinates = Loc(13.7563, 100.5018) },
@@ -165,16 +175,17 @@ public class GeneticStrategyManualReviewTest {
         ];
 
         Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
-        PrintResult("Large-Scale Regional Evacuation (5 zones, 15 vehicles)", zones, vehicles, result);
+        PrintResult("Large-Scale Regional Evacuation (5 zones, 15 vehicles)", name, zones, vehicles, result);
     }
 
     /// <summary>
     /// Speed matters: two vehicles at the same distance but vastly different speeds.
     /// The fast one should be preferred.
     /// </summary>
-    [Fact]
-    public void SpeedDifferenceScenario() {
-        GeneticStrategy strategy = new();
+    [Theory]
+    [MemberData(nameof(FitnessProviders))]
+    public void SpeedDifferenceScenario(string name, IFitnessProvider provider) {
+        GeneticStrategy strategy = new(provider);
 
         EvacuationZone[] zones = [
             new() { ZoneID = "Village", NumberOfPeople = 20, UrgencyLevel = 4, LocationCoordinates = Loc(14.0000, 100.0000) },
@@ -186,16 +197,17 @@ public class GeneticStrategyManualReviewTest {
         ];
 
         Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
-        PrintResult("Helicopter vs Ox-Cart (same location, different speed)", zones, vehicles, result);
+        PrintResult("Helicopter vs Ox-Cart (same location, different speed)", name, zones, vehicles, result);
     }
 
     /// <summary>
     /// Urgency tiebreaker: two identical zones with different urgency, only one vehicle.
     /// The vehicle should go to the higher urgency zone.
     /// </summary>
-    [Fact]
-    public void UrgencyTiebreakerScenario() {
-        GeneticStrategy strategy = new();
+    [Theory]
+    [MemberData(nameof(FitnessProviders))]
+    public void UrgencyTiebreakerScenario(string name, IFitnessProvider provider) {
+        GeneticStrategy strategy = new(provider);
 
         EvacuationZone[] zones = [
             new() { ZoneID = "Low-Priority", NumberOfPeople = 30, UrgencyLevel = 1, LocationCoordinates = Loc(10.0000, 20.0000) },
@@ -207,16 +219,17 @@ public class GeneticStrategyManualReviewTest {
         ];
 
         Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
-        PrintResult("Urgency Tiebreaker (1 bus, 2 equal zones, different urgency)", zones, vehicles, result);
+        PrintResult("Urgency Tiebreaker (1 bus, 2 equal zones, different urgency)", name, zones, vehicles, result);
     }
 
     /// <summary>
     /// Scattered islands: zones far apart, vehicles spread out.
     /// Tests whether proximity is respected when distances are large.
     /// </summary>
-    [Fact]
-    public void ScatteredIslandsScenario() {
-        GeneticStrategy strategy = new();
+    [Theory]
+    [MemberData(nameof(FitnessProviders))]
+    public void ScatteredIslandsScenario(string name, IFitnessProvider provider) {
+        GeneticStrategy strategy = new(provider);
 
         EvacuationZone[] zones = [
             new() { ZoneID = "Phuket", NumberOfPeople = 100, UrgencyLevel = 4, LocationCoordinates = Loc(7.8804, 98.3923) },
@@ -232,6 +245,6 @@ public class GeneticStrategyManualReviewTest {
         ];
 
         Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
-        PrintResult("Scattered Islands (Phuket, Samui, Lipe)", zones, vehicles, result);
+        PrintResult("Scattered Islands (Phuket, Samui, Lipe)", name, zones, vehicles, result);
     }
 }
