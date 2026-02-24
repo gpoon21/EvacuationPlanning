@@ -98,16 +98,10 @@ public class Planner {
             _vehicleSelector.Assign(_vehicles.Values, _zones.Values.Select(zone => zone.Info));
 
         foreach ((EvacuationZone zone, Vehicle[] vehicles) in result) {
-            static TimeSpan GetETA(LocationCoordinates a, LocationCoordinates b, double speedKmH) {
-                double distanceKm = GeoHelper.CalculateDistance(a, b);
-                double travelTimeHours = distanceKm / speedKmH;
-                return TimeSpan.FromHours(travelTimeHours);
-            }
-
             int remaining = zone.NumberOfPeople;
             foreach (Vehicle vehicle in vehicles.OrderBy(v => v.Capacity)) {
                 if (remaining <= 0) break;
-                TimeSpan eta = GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates,
+                TimeSpan eta = GeoHelper.GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates,
                     vehicle.Speed);
                 int peopleInVehicle = Math.Min(vehicle.Capacity, remaining);
                 Debug.Assert(peopleInVehicle > 0);

@@ -24,6 +24,12 @@ public static class GeoHelper {
         return _earthRadiusKm * c;
     }
 
+    public static TimeSpan GetETA(LocationCoordinates from, LocationCoordinates to, double speedKmH) {
+        double distanceKm = CalculateDistance(from, to);
+        double travelTimeHours = distanceKm / speedKmH;
+        return TimeSpan.FromHours(travelTimeHours);
+    }
+
     private static double DegreesToRadians(double degrees) {
         return degrees * (Math.PI / 180.0);
     }
