@@ -6,6 +6,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddSingleton<IStrategy, GeneticStrategy>();
 builder.Services.AddSingleton<Planner>();
+builder.Services.AddHostedService<RedisStatusSync>();
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

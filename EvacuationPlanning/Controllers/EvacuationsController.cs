@@ -1,3 +1,4 @@
+using EvacuationPlanning.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EvacuationPlanning.Controllers;
@@ -5,23 +6,44 @@ namespace EvacuationPlanning.Controllers;
 [ApiController]
 [Route("api/evacuations")]
 public class EvacuationsController : ControllerBase {
+    private readonly Planner _planner;
+    private readonly ILogger<EvacuationsController> _logger;
+
+    public EvacuationsController(Planner planner, ILogger<EvacuationsController> logger) {
+        _planner = planner;
+        _logger = logger;
+    }
+
     [HttpPost("plan")]
-    public async Task<IActionResult> GeneratePlan() {
-        throw new NotImplementedException();
+    public IActionResult GeneratePlan() {
+        EvacuationPlanItem[] plan = _planner.Plan();
+        _logger.LogInformation("Evacuation plan generated with {Count} assignments", plan.Length);
+        return Ok(plan);
     }
 
     [HttpGet("status")]
-    public async Task<IActionResult> GetStatus() {
-        throw new NotImplementedException();
+    public IActionResult GetStatus() {
+        EvacuationStatus[] statuses = _planner.GetStatuses();
+        return Ok(statuses);
     }
 
     [HttpPut("update")]
-    public async Task<IActionResult> UpdateStatus() {
-        throw new NotImplementedException();
+    public IActionResult UpdateStatus([FromBody] UpdateStatusRequest request) {
+        try {
+            _planner.UpdateStatus(request.ZoneID, request.VehicleID, request.NumberOfPeopleEvacuated);
+        }
+        catch (KeyNotFoundException ex) {
+            return NotFound(ex.Message);
+        }
+        _logger.LogInformation("Zone {ZoneID} updated: {Count} people evacuated via vehicle {VehicleID}",
+            request.ZoneID, request.NumberOfPeopleEvacuated, request.VehicleID);
+        return Ok();
     }
 
     [HttpDelete("clear")]
-    public async Task<IActionResult> Clear() {
-        throw new NotImplementedException();
+    public IActionResult Clear() {
+        _planner.Clear();
+        _logger.LogInformation("All evacuation data cleared");
+        return Ok();
     }
 }
