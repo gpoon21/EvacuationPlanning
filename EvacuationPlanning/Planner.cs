@@ -101,8 +101,7 @@ public class Planner {
             int remaining = zone.NumberOfPeople;
             foreach (Vehicle vehicle in vehicles.OrderBy(v => v.Capacity)) {
                 if (remaining <= 0) break;
-                TimeSpan eta = GeoHelper.GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates,
-                    vehicle.Speed);
+                TimeSpan eta = GeoHelper.GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates, vehicle.Speed);
                 int peopleInVehicle = Math.Min(vehicle.Capacity, remaining);
                 Debug.Assert(peopleInVehicle > 0);
                 plan.Add(new EvacuationPlanItem {
