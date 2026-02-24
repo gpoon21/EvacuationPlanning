@@ -188,30 +188,34 @@ internal class EvacuationFitness : IFitness {
             });
 
             int remaining = zone.NumberOfPeople;
-            bool isFirstVehicle = true;
+            // Tracks when the zone is ready for the next vehicle (after loading + switch)
+            double zoneAvailableAt = 0.0;
 
             foreach (int vi in vehicleIndices) {
                 Vehicle vehicle = _vehicles[vi];
-                double travelTimeSeconds = GeoHelper
+                double arrivalTime = GeoHelper
                     .GetETA(vehicle.LocationCoordinates, zone.LocationCoordinates, vehicle.Speed).TotalSeconds;
 
                 // Vehicle arrived but no one left to pick up — penalize the wasted travel time
                 if (remaining <= 0) {
-                    totalFitness -= travelTimeSeconds;
+                    totalFitness -= arrivalTime;
                     continue;
                 }
 
                 int peopleLoaded = Math.Min(vehicle.Capacity, remaining);
-
                 double loadingTimeSeconds = peopleLoaded;
-                double switchTimeSeconds = isFirstVehicle ? 0.0 : _vehicleSwitchSeconds;
-                double totalTimeSeconds = travelTimeSeconds + loadingTimeSeconds + switchTimeSeconds;
+
+                // Vehicle must wait if it arrives before the zone is available
+                double effectiveStart = Math.Max(arrivalTime, zoneAvailableAt);
+                double waitTime = effectiveStart - arrivalTime;
+                double totalTimeSeconds = arrivalTime + waitTime + loadingTimeSeconds;
+
+                zoneAvailableAt = effectiveStart + loadingTimeSeconds + _vehicleSwitchSeconds;
 
                 double throughput = peopleLoaded / totalTimeSeconds;
                 totalFitness += throughput * zone.UrgencyLevel;
 
                 remaining -= peopleLoaded;
-                isFirstVehicle = false;
             }
         }
 
