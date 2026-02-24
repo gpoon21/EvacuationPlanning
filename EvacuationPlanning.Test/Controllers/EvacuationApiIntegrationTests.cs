@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using EvacuationPlanning.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EvacuationPlanning.Test.Controllers;
