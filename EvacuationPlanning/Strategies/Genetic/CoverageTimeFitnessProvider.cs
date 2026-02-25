@@ -11,7 +11,7 @@ namespace EvacuationPlanning.Strategies.Genetic;
 /// <remarks>
 /// This just a failed experiment I created when I tested the throughput strategy, and I saw something that
 /// I thought it's not making sense. But it turns out that it makes perfect sense when I see the image of distances
-/// between each point.
+/// between each point. This start is not working well, but I did not fix it since it is no longer relevant.
 /// </remarks>
 public class CoverageTimeFitnessProvider : IFitnessProvider {
     private readonly double _vehicleSwitchSeconds;
