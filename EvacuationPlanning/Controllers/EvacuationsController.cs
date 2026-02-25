@@ -17,6 +17,10 @@ public class EvacuationsController : ControllerBase {
     [HttpPost("plan")]
     public IActionResult GeneratePlan() {
         EvacuationPlanItem[] plan = _planner.Plan();
+        foreach (EvacuationPlanItem item in plan) {
+            _logger.LogInformation("Assignment: vehicle {VehicleID} -> zone {ZoneID}, ETA={ETA}, people={NumberOfPeople}",
+                item.VehicleID, item.ZoneID, item.ETA, item.NumberOfPeople);
+        }
         _logger.LogInformation("Evacuation plan generated with {Count} assignments", plan.Length);
         return Ok(plan);
     }
@@ -34,6 +38,9 @@ public class EvacuationsController : ControllerBase {
         }
         catch (KeyNotFoundException ex) {
             return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex) {
+            return BadRequest(ex.Message);
         }
         _logger.LogInformation("Zone {ZoneID} updated: {Count} people evacuated via vehicle {VehicleID}",
             request.ZoneID, request.NumberOfPeopleEvacuated, request.VehicleID);

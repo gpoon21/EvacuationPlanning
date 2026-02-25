@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 
 namespace EvacuationPlanning.Models;
@@ -9,5 +10,7 @@ namespace EvacuationPlanning.Models;
 public class UpdateStatusRequest {
     public required string ZoneID { get; set; }
     public required string VehicleID { get; set; }
+
+    [Range(1, int.MaxValue)]
     public required int NumberOfPeopleEvacuated { get; set; }
 }

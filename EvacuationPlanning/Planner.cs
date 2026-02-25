@@ -25,9 +25,13 @@ public class Planner {
         private readonly Lock _lock = new();
 
         public void Evacuate(int numberOfPeople, Vehicle vehicle) {
-            //guarantee that it is not possible to observe an invalid state where the evacuated number was updated 
+            //guarantee that it is not possible to observe an invalid state where the evacuated number was updated
             // but the last vehicle is not
             lock (_lock) {
+                if (numberOfPeople > Remaining) {
+                    throw new InvalidOperationException(
+                        $"Cannot evacuate {numberOfPeople} people from zone '{Info.ZoneID}' — only {Remaining} remaining.");
+                }
                 Evacuated += numberOfPeople;
                 LastVehicle = vehicle;
             }
