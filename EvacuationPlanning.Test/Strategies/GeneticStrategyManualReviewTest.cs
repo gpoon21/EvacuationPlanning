@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EvacuationPlanning.Models;
 using EvacuationPlanning.Strategies;
 using EvacuationPlanning.Strategies.Genetic;
@@ -61,6 +62,72 @@ public class GeneticStrategyManualReviewTest {
         }
 
         _output.WriteLine($"Total vehicles: {vehicles.Length} | Assigned: {assignedIds.Count} | Unassigned: {unassignedIds.Count}");
+
+        _output.WriteLine("");
+        _output.WriteLine(BuildGeoJsonLink(zones, vehicles, result));
+    }
+
+    private static string BuildGeoJsonLink(EvacuationZone[] zones, Vehicle[] vehicles,
+        Dictionary<EvacuationZone, Vehicle[]> result) {
+        List<object> features = [];
+
+        foreach (EvacuationZone zone in zones) {
+            features.Add(new Dictionary<string, object> {
+                ["type"] = "Feature",
+                ["properties"] = new Dictionary<string, object> {
+                    ["name"] = $"{zone.ZoneID} ({zone.NumberOfPeople}p U{zone.UrgencyLevel})",
+                    ["marker-color"] = "#ff0000",
+                    ["marker-size"] = "large",
+                },
+                ["geometry"] = new {
+                    type = "Point",
+                    coordinates = new[] { zone.LocationCoordinates.Longitude, zone.LocationCoordinates.Latitude },
+                },
+            });
+        }
+
+        foreach (Vehicle vehicle in vehicles) {
+            features.Add(new Dictionary<string, object> {
+                ["type"] = "Feature",
+                ["properties"] = new Dictionary<string, object> {
+                    ["name"] = $"{vehicle.VehicleID} ({vehicle.Type} cap{vehicle.Capacity})",
+                    ["marker-color"] = "#0000ff",
+                    ["marker-size"] = "medium",
+                },
+                ["geometry"] = new {
+                    type = "Point",
+                    coordinates = new[] { vehicle.LocationCoordinates.Longitude, vehicle.LocationCoordinates.Latitude },
+                },
+            });
+        }
+
+        foreach ((EvacuationZone zone, Vehicle[] assigned) in result) {
+            foreach (Vehicle vehicle in assigned) {
+                features.Add(new Dictionary<string, object> {
+                    ["type"] = "Feature",
+                    ["properties"] = new Dictionary<string, object> {
+                        ["name"] = $"{vehicle.VehicleID} -> {zone.ZoneID}",
+                        ["stroke"] = "#00cc00",
+                        ["stroke-width"] = 3,
+                    },
+                    ["geometry"] = new {
+                        type = "LineString",
+                        coordinates = new[] {
+                            new[] { vehicle.LocationCoordinates.Longitude, vehicle.LocationCoordinates.Latitude },
+                            new[] { zone.LocationCoordinates.Longitude, zone.LocationCoordinates.Latitude },
+                        },
+                    },
+                });
+            }
+        }
+
+        object geoJson = new {
+            type = "FeatureCollection",
+            features,
+        };
+
+        string json = JsonSerializer.Serialize(geoJson);
+        return $"https://geojson.io/#data=data:application/json,{Uri.EscapeDataString(json)}";
     }
 
     /// <summary>
