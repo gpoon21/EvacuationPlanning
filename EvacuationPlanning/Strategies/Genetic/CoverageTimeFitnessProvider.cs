@@ -8,6 +8,11 @@ namespace EvacuationPlanning.Strategies.Genetic;
 /// Coverage is the primary driver, time efficiency is the tiebreaker.
 /// Penalizes vehicles that arrive with no one left to pick up.
 /// </summary>
+/// <remarks>
+/// This just a failed experiment I created when I tested the throughput strategy, and I saw something that
+/// I thought it's not making sense. But it turns out that it makes perfect sense when I see the image of distances
+/// between each point.
+/// </remarks>
 public class CoverageTimeFitnessProvider : IFitnessProvider {
     private readonly double _vehicleSwitchSeconds;
 
