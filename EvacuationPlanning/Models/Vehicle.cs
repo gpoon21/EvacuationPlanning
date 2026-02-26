@@ -8,17 +8,17 @@ namespace EvacuationPlanning.Models;
 /// </summary>
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public class Vehicle {
-    public required string VehicleID { get; set; }
+    public required string VehicleID { get; init; }
 
     [Range(1, int.MaxValue)]
-    public required int Capacity { get; set; }
+    public required int Capacity { get; init; }
 
-    public required string Type { get; set; }
-    public required LocationCoordinates LocationCoordinates { get; set; }
+    public required string Type { get; init; }
+    public required LocationCoordinates LocationCoordinates { get; init; }
 
     /// <summary>
     /// Speed in km/h
     /// </summary>
     [Range(0.1, double.MaxValue)]
-    public required double Speed { get; set; }
+    public required double Speed { get; init; }
 }

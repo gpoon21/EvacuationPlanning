@@ -7,8 +7,8 @@ namespace EvacuationPlanning.Models;
 /// </summary>
 public class LocationCoordinates {
     [Range(-90, 90)]
-    public required double Latitude { get; set; }
+    public required double Latitude { get; init; }
 
     [Range(-180, 180)]
-    public required double Longitude { get; set; }
+    public required double Longitude { get; init; }
 }

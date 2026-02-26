@@ -8,12 +8,12 @@ namespace EvacuationPlanning.Models;
 /// </summary>
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public class EvacuationZone {
-    public required string ZoneID { get; set; }
-    public required LocationCoordinates LocationCoordinates { get; set; }
+    public required string ZoneID { get; init; }
+    public required LocationCoordinates LocationCoordinates { get; init; }
 
     [Range(1, int.MaxValue)]
-    public required int NumberOfPeople { get; set; }
+    public required int NumberOfPeople { get; init; }
 
     [Range(1, 5)]
-    public required int UrgencyLevel { get; set; }
+    public required int UrgencyLevel { get; init; }
 }

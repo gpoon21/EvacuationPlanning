@@ -7,8 +7,8 @@ namespace EvacuationPlanning.Models;
 /// </summary>
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public class EvacuationPlanItem {
-    public required string ZoneID { get; set; }
-    public required string VehicleID { get; set; }
-    public required string ETA { get; set; }
-    public required int NumberOfPeople { get; set; }
+    public required string ZoneID { get; init; }
+    public required string VehicleID { get; init; }
+    public required string ETA { get; init; }
+    public required int NumberOfPeople { get; init; }
 }
