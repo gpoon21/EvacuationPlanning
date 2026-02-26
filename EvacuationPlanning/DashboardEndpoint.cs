@@ -23,9 +23,9 @@ public static class DashboardEndpoint {
                 IDatabase db = redis.GetDatabase();
 
                 await foreach (RedisKey key in server.KeysAsync(pattern: "evacuation:zone:*")) {
-                    string? json = await db.StringGetAsync(key);
-                    if (json == null) continue;
-                    EvacuationStatus? status = JsonSerializer.Deserialize<EvacuationStatus>(json);
+                    RedisValue raw = await db.HashGetAsync(key, "data");
+                    if (raw.IsNullOrEmpty) continue;
+                    EvacuationStatus? status = JsonSerializer.Deserialize<EvacuationStatus>(raw.ToString());
                     if (status != null) statuses.Add(status);
                 }
 
