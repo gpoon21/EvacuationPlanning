@@ -16,8 +16,8 @@ public interface IZone {
 /// Represents a disaster-affected area requiring evacuation.
 /// </summary>
 public class EvacuationZone : IZone {
-    public required string ZoneID { get; init; }
-    public required LocationCoordinates LocationCoordinates { get; init; }
+    [Required] public required string ZoneID { get; init; }
+    [Required] public required LocationCoordinates LocationCoordinates { get; init; }
 
     [Range(1, int.MaxValue)] public required int NumberOfPeople { get; init; }
 

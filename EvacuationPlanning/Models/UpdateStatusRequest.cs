@@ -8,8 +8,8 @@ namespace EvacuationPlanning.Models;
 /// </summary>
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public class UpdateStatusRequest {
-    public required string ZoneID { get; init; }
-    public required string VehicleID { get; init; }
+    [Required] public required string ZoneID { get; init; }
+    [Required] public required string VehicleID { get; init; }
 
     [Range(1, int.MaxValue)]
     public required int NumberOfPeopleEvacuated { get; init; }

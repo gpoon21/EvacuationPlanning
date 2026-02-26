@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 
 namespace EvacuationPlanning.Models;
@@ -7,7 +8,7 @@ namespace EvacuationPlanning.Models;
 /// </summary>
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public class EvacuationStatus {
-    public required string ZoneID { get; init; }
+    [Required] public required string ZoneID { get; init; }
     public required int TotalEvacuated { get; init; }
     public required int RemainingPeople { get; init; }
     public string? LastVehicleUsed { get; init; }
