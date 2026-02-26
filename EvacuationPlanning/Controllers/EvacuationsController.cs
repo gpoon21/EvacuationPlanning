@@ -18,6 +18,7 @@ public class EvacuationsController : ControllerBase {
     public IActionResult GeneratePlan() {
         EvacuationPlanItem[] plan = _planner.Plan();
         foreach (EvacuationPlanItem item in plan) {
+            // ReSharper disable once InconsistentLogPropertyNaming
             _logger.LogInformation("Assignment: vehicle {VehicleID} -> zone {ZoneID}, ETA={ETA}, people={NumberOfPeople}",
                 item.VehicleID, item.ZoneID, item.ETA, item.NumberOfPeople);
         }
