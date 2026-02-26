@@ -35,7 +35,7 @@ public abstract class StrategySanityTestBase {
         Vehicle[] vehicles = [MakeVehicle("V1", 50, 60, 10.0, 20.0)];
         EvacuationZone[] zones = [MakeZone("Z1", 30, 5, 10.1, 20.1)];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
 
         Assert.Contains(zones[0], result.Keys);
         Assert.Contains(vehicles[0], result[zones[0]]);
@@ -54,7 +54,7 @@ public abstract class StrategySanityTestBase {
             MakeZone("Z2", 25, 5, 10.6, 20.6)
         ];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
 
         foreach (EvacuationZone zone in zones) {
             Assert.Contains(zone, result.Keys);
@@ -74,7 +74,7 @@ public abstract class StrategySanityTestBase {
             MakeZone("Z2", 25, 5, 10.6, 20.6)
         ];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
 
         List<Vehicle> allAssigned = result.Values.SelectMany(v => v).ToList();
         Assert.Equal(allAssigned.Count, allAssigned.Distinct().Count());
@@ -89,7 +89,7 @@ public abstract class StrategySanityTestBase {
         ];
         EvacuationZone[] zones = [MakeZone("Z1", 20, 5, 10.1, 20.1)];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
 
         HashSet<Vehicle> inputVehicles = [.. vehicles];
         List<Vehicle> allAssigned = result.Values.SelectMany(v => v).ToList();
@@ -110,7 +110,7 @@ public abstract class StrategySanityTestBase {
         // Zone with only 2 people, right next to the car
         EvacuationZone[] zones = [MakeZone("Z1", 2, 5, 10.01, 20.01)];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign([nearbyCar, farCarrier], zones);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign([nearbyCar, farCarrier], zones);
 
         Assert.Contains(zones[0], result.Keys);
         Assert.Contains(nearbyCar, result[zones[0]]);
@@ -128,7 +128,7 @@ public abstract class StrategySanityTestBase {
         // Zone with 80 people - needs the big bus or multiple vehicles
         EvacuationZone[] zones = [MakeZone("Z1", 80, 5, 10.01, 20.01)];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign([smallCar, bus, bigBus], zones);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign([smallCar, bus, bigBus], zones);
 
         Assert.Contains(zones[0], result.Keys);
         int totalCapacity = result[zones[0]].Sum(v => v.Capacity);
@@ -146,7 +146,7 @@ public abstract class StrategySanityTestBase {
         EvacuationZone lowUrgency = MakeZone("Low", 10, 1, 10.01, 20.01);
         EvacuationZone highUrgency = MakeZone("High", 10, 10, 10.02, 20.02);
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, [lowUrgency, highUrgency]);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign(vehicles, [lowUrgency, highUrgency]);
 
         Assert.Contains(highUrgency, result.Keys);
         Assert.True(result[highUrgency].Length > 0,
@@ -166,7 +166,7 @@ public abstract class StrategySanityTestBase {
         // 100 people but only 30 capacity total - all vehicles must be used
         EvacuationZone[] zones = [MakeZone("Z1", 100, 10, 10.01, 20.01)];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
 
         List<Vehicle> allAssigned = result.Values.SelectMany(v => v).ToList();
         Assert.Equal(vehicles.Length, allAssigned.Count);
@@ -183,7 +183,7 @@ public abstract class StrategySanityTestBase {
         EvacuationZone zoneNorth = MakeZone("ZNorth", 10, 5, 12.01, 20.01);
         EvacuationZone zoneSouth = MakeZone("ZSouth", 10, 5, 7.99, 19.99);
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign(
             [vehicleNorth, vehicleSouth],
             [zoneNorth, zoneSouth]);
 
@@ -202,19 +202,19 @@ public abstract class StrategySanityTestBase {
 
         EvacuationZone[] zones = [MakeZone("Z1", 15, 8, 10.05, 20.05)];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign([fast, slow], zones);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign([fast, slow], zones);
 
         Assert.Contains(zones[0], result.Keys);
         Assert.Contains(fast, result[zones[0]]);
     }
-    
+
 
     [Fact]
     public void EmptyZones_ReturnsEmptyResult() {
         IStrategy strategy = CreateStrategy();
         Vehicle[] vehicles = [MakeVehicle("V1", 50, 60, 10.0, 20.0)];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, []);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign(vehicles, []);
 
         Assert.Empty(result);
     }
@@ -230,7 +230,7 @@ public abstract class StrategySanityTestBase {
         // Only 5 people to evacuate - no need for 20 vehicles
         EvacuationZone[] zones = [MakeZone("Z1", 5, 5, 10.0, 20.0)];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign(vehicles, zones);
 
         int totalAssigned = result.Values.SelectMany(v => v).Count();
         Assert.True(totalAssigned < vehicles.Length,
@@ -246,7 +246,7 @@ public abstract class StrategySanityTestBase {
 
         EvacuationZone[] zones = [MakeZone("Z1", 10, 5, 10.0, 20.0)];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign([colocated, distant], zones);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign([colocated, distant], zones);
 
         Assert.Contains(colocated, result[zones[0]]);
     }
@@ -263,7 +263,7 @@ public abstract class StrategySanityTestBase {
         // Zone at equator
         EvacuationZone[] zones = [MakeZone("Equator", 30, 5, 0.0, 0.0)];
 
-        Dictionary<EvacuationZone, Vehicle[]> result = strategy.Assign([arctic, antarctic], zones);
+        Dictionary<IZone, Vehicle[]> result = strategy.Assign([arctic, antarctic], zones);
 
         Assert.Contains(zones[0], result.Keys);
         Assert.True(result[zones[0]].Length > 0, "At least one vehicle should be assigned even at extreme distances");

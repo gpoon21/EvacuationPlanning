@@ -6,5 +6,5 @@ namespace EvacuationPlanning.Strategies.Genetic;
 /// Scores a complete vehicle-to-zone assignment. Higher is better.
 /// </summary>
 public interface IFitnessProvider {
-    public double GetFitness(IDictionary<EvacuationZone, Vehicle[]> plan);
+    public double GetFitness(IDictionary<IZone, Vehicle[]> plan);
 }

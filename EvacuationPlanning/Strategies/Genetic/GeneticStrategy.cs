@@ -33,13 +33,13 @@ public class GeneticStrategy : IStrategy {
         _fitnessProvider = fitnessProvider;
     }
 
-    public Dictionary<EvacuationZone, Vehicle[]> Assign(IEnumerable<Vehicle> vehicles,
-        IEnumerable<EvacuationZone> zones) {
+    public Dictionary<IZone, Vehicle[]> Assign(IEnumerable<Vehicle> vehicles,
+        IEnumerable<IZone> zones) {
         Vehicle[] vehicleArray = vehicles.ToArray();
-        EvacuationZone[] zoneArray = zones.ToArray();
+        IZone[] zoneArray = zones.ToArray();
 
         if (vehicleArray.Length == 0 || zoneArray.Length == 0) {
-            return new Dictionary<EvacuationZone, Vehicle[]>();
+            return new Dictionary<IZone, Vehicle[]>();
         }
 
         if (vehicleArray.Length == 1) {
@@ -68,12 +68,12 @@ public class GeneticStrategy : IStrategy {
         return DecodeChromosome(ga.BestChromosome, vehicleArray, zoneArray);
     }
 
-    private Dictionary<EvacuationZone, Vehicle[]> AssignSingleVehicle(Vehicle vehicle, EvacuationZone[] zones) {
-        EvacuationZone? bestZone = null;
+    private Dictionary<IZone, Vehicle[]> AssignSingleVehicle(Vehicle vehicle, IZone[] zones) {
+        IZone? bestZone = null;
         double bestScore = double.MinValue;
 
-        foreach (EvacuationZone zone in zones) {
-            Dictionary<EvacuationZone, Vehicle[]> candidate = new() { [zone] = [vehicle] };
+        foreach (IZone zone in zones) {
+            Dictionary<IZone, Vehicle[]> candidate = new() { [zone] = [vehicle] };
             double score = _fitnessProvider.GetFitness(candidate);
 
             if (score > bestScore) {
@@ -83,15 +83,15 @@ public class GeneticStrategy : IStrategy {
         }
 
         if (bestZone == null) {
-            return new Dictionary<EvacuationZone, Vehicle[]>();
+            return new Dictionary<IZone, Vehicle[]>();
         }
 
-        return new Dictionary<EvacuationZone, Vehicle[]> { [bestZone] = [vehicle] };
+        return new Dictionary<IZone, Vehicle[]> { [bestZone] = [vehicle] };
     }
 
-    internal static Dictionary<EvacuationZone, Vehicle[]> DecodeChromosome(
-        IChromosome chromosome, Vehicle[] vehicleArray, EvacuationZone[] zoneArray) {
-        Dictionary<EvacuationZone, List<Vehicle>> assignment = [];
+    internal static Dictionary<IZone, Vehicle[]> DecodeChromosome(
+        IChromosome chromosome, Vehicle[] vehicleArray, IZone[] zoneArray) {
+        Dictionary<IZone, List<Vehicle>> assignment = [];
 
         for (int i = 0; i < chromosome.Length; i++) {
             int zoneIndex = (int)chromosome.GetGene(i).Value;
@@ -99,7 +99,7 @@ public class GeneticStrategy : IStrategy {
                 continue;
             }
 
-            EvacuationZone zone = zoneArray[zoneIndex];
+            IZone zone = zoneArray[zoneIndex];
             if (!assignment.TryGetValue(zone, out List<Vehicle>? list)) {
                 list = [];
                 assignment[zone] = list;
@@ -140,17 +140,17 @@ internal sealed class AssignmentChromosome : ChromosomeBase {
 /// </summary>
 internal class EvacuationFitness : IFitness {
     private readonly Vehicle[] _vehicles;
-    private readonly EvacuationZone[] _zones;
+    private readonly IZone[] _zones;
     private readonly IFitnessProvider _fitnessProvider;
 
-    public EvacuationFitness(Vehicle[] vehicles, EvacuationZone[] zones, IFitnessProvider fitnessProvider) {
+    public EvacuationFitness(Vehicle[] vehicles, IZone[] zones, IFitnessProvider fitnessProvider) {
         _vehicles = vehicles;
         _zones = zones;
         _fitnessProvider = fitnessProvider;
     }
 
     public double Evaluate(IChromosome chromosome) {
-        Dictionary<EvacuationZone, Vehicle[]> plan =
+        Dictionary<IZone, Vehicle[]> plan =
             GeneticStrategy.DecodeChromosome(chromosome, _vehicles, _zones);
         return _fitnessProvider.GetFitness(plan);
     }

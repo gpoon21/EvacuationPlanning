@@ -4,5 +4,5 @@ namespace EvacuationPlanning.Strategies;
 
 
 public interface IStrategy {
-    public Dictionary<EvacuationZone, Vehicle[]> Assign(IEnumerable<Vehicle> vehicles, IEnumerable<EvacuationZone> zone);
+    public Dictionary<IZone, Vehicle[]> Assign(IEnumerable<Vehicle> vehicles, IEnumerable<IZone> zone);
 }

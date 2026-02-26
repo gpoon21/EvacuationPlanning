@@ -20,10 +20,10 @@ public class CoverageTimeFitnessProvider : IFitnessProvider {
         _vehicleSwitchSeconds = vehicleSwitchSeconds;
     }
 
-    public double GetFitness(IDictionary<EvacuationZone, Vehicle[]> plan) {
+    public double GetFitness(IDictionary<IZone, Vehicle[]> plan) {
         double totalFitness = 0.0;
 
-        foreach ((EvacuationZone zone, Vehicle[] vehicles) in plan) {
+        foreach ((IZone zone, Vehicle[] vehicles) in plan) {
             Vehicle[] sorted = [.. vehicles.OrderBy(v =>
                 GeoHelper.GetETA(v.LocationCoordinates, zone.LocationCoordinates, v.Speed).TotalSeconds)];
 

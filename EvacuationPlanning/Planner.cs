@@ -11,7 +11,7 @@ namespace EvacuationPlanning;
 /// Manages evacuation data in memory and syncs evacuation status.
 /// </summary>
 public class Planner {
-    private class Zone {
+    private class Zone : IZone {
         public required EvacuationZone Info { get; init; }
 
         public int Evacuated { get; private set; }
@@ -45,6 +45,40 @@ public class Planner {
                 LastVehicleUsed = JsonSerializer.Serialize(LastVehicle),
             };
         }
+
+        public LocationCoordinates LocationCoordinates {
+            get { return Info.LocationCoordinates; }
+        }
+
+        public int NumberOfPeople {
+            get { return Remaining; }
+        }
+
+        public int UrgencyLevel {
+            get { return Info.UrgencyLevel; }
+        }
+
+        public string ZoneID {
+            get { return Info.ZoneID; }
+        }
+    }
+
+    private class TrackedVehicle {
+        public required Vehicle Info { get; init; }
+
+        private int _available = 1;
+
+        public bool IsAvailable {
+            get { return Interlocked.CompareExchange(ref _available, 0, 0) == 1; }
+        }
+
+        public void Dispatch() {
+            Interlocked.Exchange(ref _available, 0);
+        }
+
+        public void Release() {
+            Interlocked.Exchange(ref _available, 1);
+        }
     }
 
     public enum UpdateType {
@@ -54,7 +88,7 @@ public class Planner {
 
     public event Action<EvacuationStatus, UpdateType>? ZoneUpdated;
     private readonly ConcurrentDictionary<string, Zone> _zones = new();
-    private readonly ConcurrentDictionary<string, Vehicle> _vehicles = new();
+    private readonly ConcurrentDictionary<string, TrackedVehicle> _vehicles = new();
     private readonly IStrategy _vehicleSelector;
 
 
@@ -64,7 +98,8 @@ public class Planner {
 
 
     public void SetVehicle(Vehicle vehicle) {
-        _vehicles[vehicle.VehicleID] = vehicle;
+        TrackedVehicle tracked = new() { Info = vehicle };
+        _vehicles[vehicle.VehicleID] = tracked;
     }
 
     public void SetZone(EvacuationZone zone) {
@@ -89,8 +124,8 @@ public class Planner {
         foreach (Zone zone in _zones.Values) {
             RemoveZone(zone.Info.ZoneID);
         }
-        foreach (Vehicle vehicle in _vehicles.Values) {
-            RemoveVehicle(vehicle.VehicleID);
+        foreach (TrackedVehicle vehicle in _vehicles.Values) {
+            RemoveVehicle(vehicle.Info.VehicleID);
         }
     }
 
@@ -98,10 +133,15 @@ public class Planner {
     public EvacuationPlanItem[] Plan() {
         List<EvacuationPlanItem> plan = [];
 
-        Dictionary<EvacuationZone, Vehicle[]> result =
-            _vehicleSelector.Assign(_vehicles.Values, _zones.Values.Select(zone => zone.Info));
+        Vehicle[] availableVehicles = _vehicles.Values
+            .Where(v => v.IsAvailable)
+            .Select(v => v.Info)
+            .ToArray();
 
-        foreach ((EvacuationZone zone, Vehicle[] vehicles) in result) {
+        Dictionary<IZone, Vehicle[]> result =
+            _vehicleSelector.Assign(availableVehicles, _zones.Values);
+
+        foreach ((IZone zone, Vehicle[] vehicles) in result) {
             int remaining = zone.NumberOfPeople;
             foreach (Vehicle vehicle in vehicles.OrderBy(v => v.Capacity)) {
                 if (remaining <= 0) break;
@@ -115,6 +155,8 @@ public class Planner {
                     NumberOfPeople = peopleInVehicle
                 });
                 remaining -= peopleInVehicle;
+
+                _vehicles[vehicle.VehicleID].Dispatch();
             }
         }
 
@@ -129,10 +171,11 @@ public class Planner {
         if (!_zones.TryGetValue(zoneId, out Zone? zone)) {
             throw new KeyNotFoundException($"Zone '{zoneId}' not found.");
         }
-        if (!_vehicles.TryGetValue(vehicleId, out Vehicle? vehicle)) {
+        if (!_vehicles.TryGetValue(vehicleId, out TrackedVehicle? tracked)) {
             throw new KeyNotFoundException($"Vehicle '{vehicleId}' not found");
         }
-        zone.Evacuate(numberOfPeopleEvacuated, vehicle);
+        zone.Evacuate(numberOfPeopleEvacuated, tracked.Info);
+        tracked.Release();
         ZoneUpdated?.Invoke(zone.GetStatus(), UpdateType.Updated);
     }
 }
