@@ -65,19 +65,14 @@ public class Planner {
 
     private class TrackedVehicle {
         public required Vehicle Info { get; init; }
-
-        private int _available = 1;
-
-        public bool IsAvailable {
-            get { return Interlocked.CompareExchange(ref _available, 0, 0) == 1; }
-        }
+        public bool IsAvailable { get; private set; }
 
         public void Dispatch() {
-            Interlocked.Exchange(ref _available, 0);
+            IsAvailable = false;
         }
 
         public void Release() {
-            Interlocked.Exchange(ref _available, 1);
+            IsAvailable = true;
         }
     }
 
