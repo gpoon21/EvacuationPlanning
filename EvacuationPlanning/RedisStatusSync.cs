@@ -31,15 +31,20 @@ public class RedisStatusSync : IHostedService {
     private void OnZoneUpdated(EvacuationStatus status, Planner.UpdateType updateType) {
         string key = $"evacuation:zone:{status.ZoneID}";
 
-        if (updateType == Planner.UpdateType.Removed) {
-            _cache.Remove(key);
-            _logger.LogInformation("Zone {ZoneID} removed from Redis", status.ZoneID);
-            return;
-        }
+        try {
+            if (updateType == Planner.UpdateType.Removed) {
+                _cache.Remove(key);
+                _logger.LogInformation("Zone {ZoneID} removed from Redis", status.ZoneID);
+                return;
+            }
 
-        string json = JsonSerializer.Serialize(status);
-        _cache.SetString(key, json);
-        _logger.LogInformation("Zone {ZoneID} synced to Redis (evacuated={TotalEvacuated}, remaining={RemainingPeople})",
-            status.ZoneID, status.TotalEvacuated, status.RemainingPeople);
+            string json = JsonSerializer.Serialize(status);
+            _cache.SetString(key, json);
+            _logger.LogInformation("Zone {ZoneID} synced to Redis (evacuated={TotalEvacuated}, remaining={RemainingPeople})",
+                status.ZoneID, status.TotalEvacuated, status.RemainingPeople);
+        }
+        catch (Exception ex) {
+            _logger.LogError(ex, "Failed to sync zone {ZoneID} to Redis", status.ZoneID);
+        }
     }
 }
