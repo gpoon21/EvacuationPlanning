@@ -65,7 +65,7 @@ public class Planner {
 
     private class TrackedVehicle {
         public required Vehicle Info { get; init; }
-        public bool IsAvailable { get; private set; }
+        public bool IsAvailable { get; private set; } = true;
 
         public void Dispatch() {
             IsAvailable = false;
